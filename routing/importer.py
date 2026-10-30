@@ -1,6 +1,6 @@
 """Fuel station CSV data ingestion pipeline.
 
-Authoritative source: Recruiter-supplied OPIS truckstop price CSV.
+Authoritative source: OPIS truckstop price CSV data feed.
 Coordinates: Offline fallback from us_cities.csv (city-centre centroids).
 Duplicate policy: Deterministically keep the lowest observed price per OPIS ID
 (reflecting the lowest cost-of-entry fuel tier at that truckstop), breaking ties

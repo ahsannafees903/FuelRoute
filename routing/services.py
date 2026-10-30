@@ -1,4 +1,4 @@
-﻿"""Fuel-stop planner.
+"""Fuel-stop planner.
 Speed plan: local gazetteer for place names (0 API calls), ONE OSRM call for the route,
 numpy + KD-tree for the station search, greedy look-ahead for the plan, cache for repeats."""
 import csv
@@ -27,9 +27,19 @@ STATES = dict(p.split(":") for p in (
     "New Mexico:NM,New York:NY,North Carolina:NC,North Dakota:ND,Ohio:OH,Oklahoma:OK,Oregon:OR,"
     "Pennsylvania:PA,Rhode Island:RI,South Carolina:SC,South Dakota:SD,Tennessee:TN,Texas:TX,Utah:UT,"
     "Vermont:VT,Virginia:VA,Washington:WA,West Virginia:WV,Wisconsin:WI,Wyoming:WY").split(","))
+from urllib3.util import Retry
+from requests.adapters import HTTPAdapter
+
 COORD = re.compile(r"\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*")
+
 SESSION = requests.Session()
-UA = {"User-Agent": "fuel-route-demo/1.0 (teaching project)"}
+_retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[502, 503, 504])
+_adapter = HTTPAdapter(max_retries=_retries)
+SESSION.mount("https://", _adapter)
+SESSION.mount("http://", _adapter)
+
+def get_user_agent():
+    return {"User-Agent": getattr(settings, "NOMINATIM_USER_AGENT", "FuelRoute-Engine/1.0 (ops@fuelroute.internal)")}
 
 
 class LocationError(ValueError): pass          # -> HTTP 400
@@ -79,7 +89,7 @@ def _nominatim(text, counter):
     """Geocoding fallback for inputs the local gazetteer cannot resolve."""
     counter["calls"] += 1
     try:
-        resp = SESSION.get(settings.NOMINATIM_URL, headers=UA, timeout=(5, 10),
+        resp = SESSION.get(settings.NOMINATIM_URL, headers=get_user_agent(), timeout=(5, 10),
                            params={"q": text, "format": "json", "limit": 1, "countrycodes": "us"})
         resp.raise_for_status()
         j = resp.json()
@@ -95,7 +105,7 @@ def _nominatim(text, counter):
 
 
 def resolve(text, counter):
-    key = "geo:" + hashlib.md5(re.sub(r"\s+", " ", text.strip().lower()).encode()).hexdigest()
+    key = "geo:" + hashlib.md5(re.sub(r"\s+", " ", text.strip().lower()).encode(), usedforsecurity=False).hexdigest()
     hit = cache.get(key)
     if hit:
         return hit
@@ -109,6 +119,8 @@ def resolve(text, counter):
 
 # ---------- routing (the ONE external call) ----------
 def decode_polyline(s, f=1e5):
+    if not s or not isinstance(s, str):
+        raise RoutingError("Route geometry is empty or missing.")
     lat = lon = i = 0
     out = []
     while i < len(s):
@@ -136,7 +148,7 @@ def fetch_route(a, b, counter):
     url = f"{settings.OSRM_URL}/route/v1/driving/{a[1]},{a[0]};{b[1]},{b[0]}"
     try:
         resp = SESSION.get(url, params={"overview": "full", "geometries": "polyline"},
-                           headers=UA, timeout=(5, 25))
+                           headers=get_user_agent(), timeout=(5, 25))
         resp.raise_for_status()
         j = resp.json()
     except requests.Timeout:
@@ -263,7 +275,7 @@ def build_plan(start_text, finish_text):
     t0 = perf_counter()
     counter = {"calls": 0}
     a, b = resolve(start_text, counter), resolve(finish_text, counter)
-    key = "plan:" + hashlib.md5(f"{a[0]:.3f},{a[1]:.3f}>{b[0]:.3f},{b[1]:.3f}".encode()).hexdigest()
+    key = "plan:" + hashlib.md5(f"{a[0]:.3f},{a[1]:.3f}>{b[0]:.3f},{b[1]:.3f}".encode(), usedforsecurity=False).hexdigest()
     out = cache.get(key)
     cached = out is not None
     if not cached:

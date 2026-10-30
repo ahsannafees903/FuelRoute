@@ -424,14 +424,40 @@ html,body{height:100%;font-family:'Inter',system-ui,-apple-system,sans-serif;bac
   </div>
 </div>
 
+{% if data %}
+{{ data|json_script:"d" }}
+{% endif %}
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ── Map Init ──
 const map = L.map('m', {zoomControl:true}).setView([39.8, -98.6], 4);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a>',
+const osmStandard = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
   maxZoom: 19
-}).addTo(map);
+});
+const osmHot = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, Tiles style by Humanitarian OSM Team',
+  maxZoom: 19
+});
+const darkLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+  maxZoom: 16
+});
+const streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS',
+  maxZoom: 18
+});
+
+// Set OpenStreetMap (Original) as the active default
+osmStandard.addTo(map);
+
+L.control.layers({
+  "OpenStreetMap (Original)": osmStandard,
+  "OpenStreetMap (HOT)": osmHot,
+  "Dark Canvas": darkLayer,
+  "Esri Streets": streetLayer
+}, null, { position: 'topright' }).addTo(map);
 
 let routeLayer = null;
 const markerLayer = L.layerGroup().addTo(map);
@@ -786,7 +812,5 @@ showError("{{ error|escapejs }}");
 })();
 {% endif %}
 </script>
-
-{% if data %}{{ data|json_script:"d" }}{% endif %}
 </body>
 </html>

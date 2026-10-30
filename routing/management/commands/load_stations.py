@@ -54,6 +54,9 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - OPIS {u['opis_id']}: {u['name']} ({u['city']}, {u['state']})")
 
         if not dry_run:
+            from routing.services import station_index
+            station_index.cache_clear()
             self.stdout.write(self.style.SUCCESS(
                 f"\nSuccessfully populated database with {stats.loaded_stations_count} stations."
             ))
+

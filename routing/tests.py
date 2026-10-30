@@ -225,7 +225,7 @@ class DataPipelineTests(TestCase):
         return io.StringIO(content.strip())
 
     def test_import_full_authoritative_dataset(self):
-        """Verify the full recruiter-supplied CSV loads accurately and safely."""
+        """Verify the full authoritative fuel price CSV loads accurately and safely."""
         csv_path = get_default_csv_path()
         stats = import_stations_from_csv(csv_path)
         self.assertEqual(stats.total_rows_read, 8151)

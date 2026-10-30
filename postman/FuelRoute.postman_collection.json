@@ -1,4 +1,4 @@
-﻿{
+{
   "info": {
     "name": "FuelRoute API",
     "description": "Fuel-stop route planner. Run requests 1-7 in order. Request 3 verifies caching (run after 2).",
@@ -68,7 +68,7 @@
               "  pm.expect(d.final_leg.arrival_fuel_gallons).to.be.at.least(0);",
               "});",
               "// Optional: draw the route inside Postman (Visualize tab)",
-              "const t = `<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\"><script src=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\"></script><div id=\"m\" style=\"height:480px\"></div><script>pm.getData(function(e,d){var m=L.map('m');L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);var l=L.geoJSON(d.route).addTo(m);m.fitBounds(l.getBounds());d.fuel_stops.forEach(function(s){L.marker([s.lat,s.lon]).addTo(m).bindPopup(s.name+' - '+s.gallons_to_buy+' gal @ $'+s.price_per_gallon)})});</script>`;",
+              "const t = `<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\"><script src=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\"></script><div id=\"m\" style=\"height:480px\"></div><script>pm.getData(function(e,d){var m=L.map('m');L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',{maxZoom:19}).addTo(m);var l=L.geoJSON(d.route).addTo(m);m.fitBounds(l.getBounds());d.fuel_stops.forEach(function(s){L.marker([s.lat,s.lon]).addTo(m).bindPopup(s.name+' - '+s.gallons_to_buy+' gal @ $'+s.price_per_gallon)})});</script>`;",
               "pm.visualizer.set(t, d);"
             ]
           }
