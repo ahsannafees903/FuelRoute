@@ -1,6 +1,6 @@
 # FuelRoute API & Interactive Planner (Django 6.1)
 
-A production-grade, secure, and performant REST API and interactive interface that calculates the cost-optimal fuel stops for commercial road trips across the contiguous United States.
+A secure, performant REST API and interactive interface that calculates the cost-optimal fuel stops for commercial road trips across the contiguous United States.
 
 - **Inputs**: Contiguous US origin and destination (city/state names, addresses, or decimal latitude/longitude coordinates).
 - **Outputs**: Driving route polyline (GeoJSON LineString), cost-optimized fuel stops, fuel purchase breakdown, vehicle tank state tracking, detour costs, and an interactive Leaflet visualization.
@@ -63,25 +63,26 @@ python manage.py runserver
 
 The project reads environment variables from the host environment or a local `.env` file (loaded automatically if present via built-in standard library parser, without requiring external dotenv dependencies).
 
-| Variable | Default | Mode | Description |
-| :--- | :--- | :--- | :--- |
-| `DJANGO_DEBUG` | `1` | Dev / Prod | Set to `0` or `false` in production. Disables debug tracebacks and enforces security headers. |
-| `DJANGO_SECRET_KEY` | `dev-only-change-me` | Dev / Prod | Cryptographic signing secret. **Fails safely with `ImproperlyConfigured`** if left as default when `DEBUG=0`. |
-| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Dev / Prod | Comma-separated list of permitted host headers (whitespace trimmed automatically). |
-| `DJANGO_SECURE_SSL_REDIRECT`| `0` | Prod | Set to `1` behind reverse proxy with TLS termination to enforce HTTPS. |
-| `DJANGO_SESSION_COOKIE_SECURE`| `0` | Prod | Set to `1` when served over HTTPS. |
-| `DJANGO_CSRF_COOKIE_SECURE` | `0` | Prod | Set to `1` when served over HTTPS. |
-| `DJANGO_SECURE_HSTS_SECONDS` | `0` | Prod | HTTP Strict Transport Security duration (e.g. `31536000`). |
-| `RATE_LIMIT_ENABLED` | `1` | All | Enables IP-based sliding window rate limiting. |
-| `RATE_LIMIT_MAX_REQUESTS` | `60` | All | Maximum requests allowed per IP within the window. |
-| `RATE_LIMIT_WINDOW_SECONDS` | `60` | All | Duration of the rate limiting window in seconds. |
-| `OSRM_URL` | `https://router.project-osrm.org` | All | Base URL for Open Source Routing Machine driving engine. |
-| `NOMINATIM_URL` | `https://nominatim.openstreetmap.org/search` | Fallback | Fallback geocoder endpoint for unrecognized locations. |
-| `NOMINATIM_USER_AGENT` | `FuelRoute-Engine/1.0 (ops@fuelroute.internal)` | All | Identification header for OpenStreetMap Nominatim compliance. |
-| `MAX_RANGE_MILES` | `500` | Core Spec | Maximum vehicle range on a full tank (miles). |
-| `MPG` | `10` | Core Spec | Fuel economy in miles per gallon. Implies a 50-gallon tank capacity. |
-| `CORRIDOR_MILES` | `10` | Core Spec | Maximum perpendicular station search radius from the route. |
-| `OPENBLAS_NUM_THREADS` | `1` | Core Spec | Guards Windows against virtual memory allocation exhaustion in SciPy/NumPy. |
+| Variable                       | Default                                         | Mode       | Description                                                                                                   |
+| :----------------------------- | :---------------------------------------------- | :--------- | :------------------------------------------------------------------------------------------------------------ |
+| `DJANGO_DEBUG`                 | `1`                                             | Dev / Prod | Set to `0` or `false` in production. Disables debug tracebacks and enforces security headers.                 |
+| `DJANGO_SECRET_KEY`            | `dev-only-change-me`                            | Dev / Prod | Cryptographic signing secret. **Fails safely with `ImproperlyConfigured`** if left as default when `DEBUG=0`. |
+| `DJANGO_ALLOWED_HOSTS`         | `localhost,127.0.0.1`                           | Dev / Prod | Comma-separated list of permitted host headers (whitespace trimmed automatically).                            |
+| `DJANGO_SECURE_SSL_REDIRECT`   | `0`                                             | Prod       | Set to `1` behind reverse proxy with TLS termination to enforce HTTPS.                                        |
+| `DJANGO_SESSION_COOKIE_SECURE` | `0`                                             | Prod       | Set to `1` when served over HTTPS.                                                                            |
+| `DJANGO_CSRF_COOKIE_SECURE`    | `0`                                             | Prod       | Set to `1` when served over HTTPS.                                                                            |
+| `DJANGO_SECURE_HSTS_SECONDS`   | `0`                                             | Prod       | HTTP Strict Transport Security duration (e.g. `31536000`).                                                    |
+| `RATE_LIMIT_ENABLED`           | `1`                                             | All        | Enables IP-based sliding window rate limiting.                                                                |
+| `RATE_LIMIT_MAX_REQUESTS`      | `60`                                            | All        | Maximum requests allowed per IP within the window.                                                            |
+| `RATE_LIMIT_WINDOW_SECONDS`    | `60`                                            | All        | Duration of the rate limiting window in seconds.                                                              |
+| `OSRM_URL`                     | `https://router.project-osrm.org`               | All        | Base URL for Open Source Routing Machine driving engine.                                                      |
+| `NOMINATIM_URL`                | `https://nominatim.openstreetmap.org/search`    | Fallback   | Fallback geocoder endpoint for unrecognized locations.                                                        |
+| `NOMINATIM_USER_AGENT`         | `FuelRoute-Engine/1.0 (ops@fuelroute.internal)` | All        | Identification header for OpenStreetMap Nominatim compliance.                                                 |
+| `MAX_RANGE_MILES`              | `500`                                           | Core Spec  | Maximum vehicle range on a full tank (miles).                                                                 |
+| `MPG`                          | `10`                                            | Core Spec  | Fuel economy in miles per gallon. Implies a 50-gallon tank capacity.                                          |
+| `CORRIDOR_MILES`               | `10`                                            | Core Spec  | Maximum perpendicular station search radius from the route.                                                   |
+| `MIN_BUY_MILES`                | `50`                                            | Core Spec  | Minimum purchase size in miles of fuel, to avoid very small stops.                                            |
+| `OPENBLAS_NUM_THREADS`         | `1`                                             | Core Spec  | Guards Windows against virtual memory allocation exhaustion in SciPy/NumPy.                                   |
 
 ---
 
@@ -93,14 +94,15 @@ Calculates the optimal fuel stops for a trip between two US locations.
 
 #### Request Parameters (Query String or JSON Payload)
 
-| Field | Type | Required | Constraints | Example |
-| :--- | :--- | :--- | :--- | :--- |
-| `start` | string | Yes | 1-100 characters; contiguous US | `"Chicago, IL"` or `"41.8781,-87.6298"` |
-| `finish` | string | Yes | 1-100 characters; contiguous US; != `start` | `"Denver, CO"` or `"39.7392,-104.9903"` |
+| Field    | Type   | Required | Constraints                                 | Example                                 |
+| :------- | :----- | :------- | :------------------------------------------ | :-------------------------------------- |
+| `start`  | string | Yes      | 1-100 characters; contiguous US             | `"Chicago, IL"` or `"41.8781,-87.6298"` |
+| `finish` | string | Yes      | 1-100 characters; contiguous US; != `start` | `"Denver, CO"` or `"39.7392,-104.9903"` |
 
 #### cURL Examples
 
 **JSON Payload (`POST`):**
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/route/ \
      -H "Content-Type: application/json" \
@@ -108,6 +110,7 @@ curl -X POST http://127.0.0.1:8000/api/route/ \
 ```
 
 **Query String (`GET`):**
+
 ```bash
 curl "http://127.0.0.1:8000/api/route/?start=Chicago,+IL&finish=Denver,+CO"
 ```
@@ -154,9 +157,9 @@ curl "http://127.0.0.1:8000/api/route/?start=Chicago,+IL&finish=Denver,+CO"
       "mile_marker": 158.4,
       "leg_distance_miles": 158.4,
       "arrival_fuel_gallons": 0.0,
-      "gallons_to_buy": 35.10,
+      "gallons_to_buy": 35.1,
       "cost": 112.28,
-      "departure_fuel_gallons": 35.10,
+      "departure_fuel_gallons": 35.1,
       "detour_miles": 1.8,
       "detour_fuel_cost": 1.15
     }
@@ -167,7 +170,11 @@ curl "http://127.0.0.1:8000/api/route/?start=Chicago,+IL&finish=Denver,+CO"
   },
   "route": {
     "type": "LineString",
-    "coordinates": [[-87.6298, 41.8781], [-90.7745, 41.5898], [-104.9903, 39.7392]]
+    "coordinates": [
+      [-87.6298, 41.8781],
+      [-90.7745, 41.5898],
+      [-104.9903, 39.7392]
+    ]
   },
   "start": { "query": "Chicago, IL", "lat": 41.8781, "lon": -87.6298 },
   "finish": { "query": "Denver, CO", "lat": 39.7392, "lon": -104.9903 },
@@ -182,13 +189,13 @@ curl "http://127.0.0.1:8000/api/route/?start=Chicago,+IL&finish=Denver,+CO"
 
 #### Standard Error Contracts
 
-| HTTP Code | Exception Trigger | Meaning | Response Body |
-| :--- | :--- | :--- | :--- |
-| **`400 Bad Request`** | `LocationError` | Missing params, same start/finish, non-US, >100 chars, or payload >32KB | `{"error": "<Descriptive reason>"}` |
-| **`422 Unprocessable Content`** | `NoStationInRange` | Route gap between reachable stations exceeds the 500-mile vehicle range | `{"error": "<Mile gap explanation>"}` |
-| **`429 Too Many Requests`** | Rate Limiter | IP exceeded configured request threshold | `{"error": "Rate limit exceeded. Please wait a minute..."}` |
-| **`500 Internal Server Error`** | Unhandled | Unexpected server failure (internal details logged, hidden from client) | `{"error": "An unexpected server error occurred..."}` |
-| **`502 Bad Gateway`** | `RoutingError` | OSRM/Nominatim network timeout, upstream HTTP error, or malformed GeoJSON | `{"error": "Routing service unavailable..."}` |
+| HTTP Code                       | Exception Trigger  | Meaning                                                                   | Response Body                                               |
+| :------------------------------ | :----------------- | :------------------------------------------------------------------------ | :---------------------------------------------------------- |
+| **`400 Bad Request`**           | `LocationError`    | Missing params, same start/finish, non-US, >100 chars, or payload >32KB   | `{"error": "<Descriptive reason>"}`                         |
+| **`422 Unprocessable Content`** | `NoStationInRange` | Route gap between reachable stations exceeds the 500-mile vehicle range   | `{"error": "<Mile gap explanation>"}`                       |
+| **`429 Too Many Requests`**     | Rate Limiter       | IP exceeded configured request threshold                                  | `{"error": "Rate limit exceeded. Please wait a minute..."}` |
+| **`500 Internal Server Error`** | Unhandled          | Unexpected server failure (internal details logged, hidden from client)   | `{"error": "An unexpected server error occurred..."}`       |
+| **`502 Bad Gateway`**           | `RoutingError`     | OSRM/Nominatim network timeout, upstream HTTP error, or malformed GeoJSON | `{"error": "Routing service unavailable..."}`               |
 
 ### `GET` `/api/route/map/`
 
@@ -199,14 +206,17 @@ Interactive single-page visual map application with real-time route rendering, s
 ## 5. Security & Protection Architecture
 
 ### A. Secrets & Production Hardening
+
 - **No Hardcoded Secrets**: `DJANGO_SECRET_KEY` is loaded from the environment. When `DEBUG=False`, launching with the default placeholder raises `ImproperlyConfigured` immediately.
 - **Git Shielding**: `.gitignore` excludes `.env`, `.env.*`, caches, SQLite files, logs, and bytecode, while explicitly whitelisting `.env.example`.
 - **Security Headers**: Enabled in non-debug mode via `django.middleware.security.SecurityMiddleware`:
   - `X-Content-Type-Options: nosniff`
   - `X-Frame-Options: DENY` (anti-clickjacking)
   - Configurable `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, and `HSTS`.
+- **CSRF**: `CsrfViewMiddleware` is intentionally disabled because this is a public, stateless JSON API with no cookies or login sessions; if authentication is added, CSRF protection or token auth would be enabled.
 
 ### B. Input Validation & Denial-of-Service Defense
+
 - **Payload Size Limiter**: JSON request bodies exceeding `MAX_BODY_BYTES = 32KB` are rejected before deserialization to prevent memory exhaustion attacks.
 - **Input Boundaries**: Origin and destination strings are strictly capped at 100 characters.
 - **Cache-Backed Sliding Window Rate Limiting**: Built into `route_api` with zero external database dependencies. Throttles abusive automated queries per IP (default: 60 req/min).
@@ -214,9 +224,10 @@ Interactive single-page visual map application with real-time route rendering, s
 - **XSS Prevention**: The map template safely injects server payloads using Django's `json_script` tag and escapes user strings with HTML entity encoders.
 
 ### C. Dependency Auditing & Cryptographic Integrity
-- **Vulnerability Audit**: Automated audit conducted with `pip-audit`. Result: **0 vulnerabilities** across all project dependencies (`pip`, `Django`, `numpy`, `scipy`, `requests`).
-- **Static Security Analysis**: Automated static analysis conducted with `bandit`. Result: **0 High/Medium/Low issues**.
-- **Bandit-Compliant Hashing**: Internal caching hashes in `services.py` explicitly declare `usedforsecurity=False` on MD5 invocations to conform with PEP 547 / FIPS compliance.
+
+- **Vulnerability Audit**: Automated audit conducted with `pip-audit`. At the time of writing, it reported no known vulnerabilities in the project dependencies (`pip`, `Django`, `numpy`, `scipy`, `requests`).
+- **Static Security Analysis**: Automated static analysis conducted with `bandit`. At the time of writing, it reported no issues; re-run before any deployment.
+- **Bandit-Compliant Hashing**: Internal caching hashes in `services.py` explicitly declare `usedforsecurity=False` on MD5 invocations to conform with FIPS-restricted environments (Python 3.9+ `hashlib`).
 
 ---
 
@@ -227,9 +238,9 @@ Interactive single-page visual map application with real-time route rendering, s
 3. **Vehicle Start State**: Assumes the vehicle starts empty (0 gallons) at the trip origin. Initial fuel is purchased to cover the first leg, priced according to the first station on the route.
 4. **Greedy Look-Ahead Algorithm**:
    - At each stop, look ahead up to 500 miles.
-   - If a cheaper-or-equal station is within range, buy only enough fuel to reach that station.
+   - If a strictly cheaper station is within range, buy only enough fuel to reach that station (minimum purchase: enough fuel for 50 miles, `MIN_BUY_MILES`, to avoid tiny stops).
    - If no cheaper station exists within range, fill the tank to capacity (50 gallons) and drive to the cheapest reachable station.
-   - **Optimality**: Verified against an exact dynamic programming (DP) discrete global solver across 800+ randomized route tests; the greedy algorithm achieves exact equality.
+   - **Optimality**: Verified against an exact dynamic programming (DP) discrete global solver in one test that runs 800 randomized routes (`routing/tests.py`); the greedy cost matched the DP cost in every case.
 5. **Detour Accounting**:
    - Stations within a 10-mile perpendicular corridor are identified using a spherical KD-Tree on 3D spatial coordinates.
    - Detour distance is calculated as crow-fly distance from the road line to the station.
